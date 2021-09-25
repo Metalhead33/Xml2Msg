@@ -18,6 +18,7 @@ MainWindow::MainWindow(QWidget *parent)
 	, ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
+	ui->progressBar->hide();
 }
 
 MainWindow::~MainWindow()
@@ -132,7 +133,7 @@ QString MainWindow::formatName(const QString &name)
 	newName = newName.replace(BACKGROUND1, "<span style=\"background-color: \\1;\">\\2</span>");
 	}
 	for(int i = 0; i < 256; ++i) {
-		newName = newName.replace(QStringLiteral("color: %1").arg(i),QStringLiteral("color: %1").arg(COLORS[i].name()));
+		newName = newName.replace(QStringLiteral("color: %1;").arg(i),QStringLiteral("color: %1;").arg(COLORS[i].name()));
 	}
 	return newName;
 }
@@ -202,8 +203,9 @@ void MainWindow::on_saveToFolders_clicked()
 					QStringLiteral("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"><html><head>"
 						"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
 						"<title>Conversation with %1 at %2 on horvathjeno1944@msn.com (msn)</title></head>"
-						"<body><h1>Conversation with %1 at %2 on horvathjeno1944@msn.com (msn)</h1>\n").arg("sender").arg(dateTime.toString()).toUtf8()
-		);
+						"<body><h1>Conversation with %1 at %2 on horvathjeno1944@msn.com (msn)</h1>\n")
+					.arg("sender").arg(dateTime.toString(QStringLiteral("yyyy. MMM. d. dddd, H:mm:ss t"))).toUtf8()
+		); // 2020. ápr. 6., hétfő, 15:04:52 CEST
 		for(auto zt = std::begin(*it); zt != std::end(*it); ++zt) {
 			file.write(QStringLiteral("<p>(%1) %2: <span style=\"%3\">%4</span></p>\n").arg(zt->time.toString()).arg(zt->sender).arg(zt->style).arg(zt->text).toUtf8());
 		}
@@ -225,8 +227,14 @@ void MainWindow::on_massProcessBtn_clicked()
 	QDir dir1(loadDirectory);
 	QDir dir2(saveDirectory);
 	QDirIterator inputIterator(dir1);
+	QList<QString> directories;
 	while(inputIterator.hasNext()) {
-		QString inputFilename = inputIterator.next();
+		directories.push_back(inputIterator.next());
+	}
+	ui->progressBar->setRange(0,directories.size());
+	ui->progressBar->show();
+	for(const auto& inputFilename : directories) {
+		ui->progressBar->setValue(ui->progressBar->value() + 1);
 		if(inputFilename.endsWith(QStringLiteral(".xml"),Qt::CaseInsensitive)) {
 			QFile infile(inputFilename);
 			if(!infile.open(QFile::ReadOnly)) {
@@ -258,10 +266,12 @@ void MainWindow::on_massProcessBtn_clicked()
 								QStringLiteral("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\"><html><head>"
 									"<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
 									"<title>Conversation with %1 at %2 on horvathjeno1944@msn.com (msn)</title></head>"
-									"<body><h1>Conversation with %1 at %2 on horvathjeno1944@msn.com (msn)</h1>\n").arg(info.baseName()).arg(dateTime.toString()).toUtf8()
+									"<body><h1>Conversation with %1 at %2 on horvathjeno1944@msn.com (msn)</h1>\n")
+								.arg(info.baseName()).arg(dateTime.toString(QStringLiteral("yyyy. MMM d. dddd, H:mm:ss t"))).toUtf8()
 					);
 					for(auto zt = std::begin(*it); zt != std::end(*it); ++zt) {
-						file.write(QStringLiteral("<p>(%1) %2: <span style=\"%3\">%4</span></p>\n").arg(zt->time.toString()).arg(zt->sender).arg(zt->style).arg(zt->text).toUtf8());
+						file.write(QStringLiteral("<p>(%1) %2: <span style=\"%3\">%4</span></p>\n")
+								   .arg(zt->time.toString()).arg(zt->sender).arg(zt->style).arg(zt->text).toUtf8());
 					}
 					file.flush();
 					file.setFileTime(dateTime,QFileDevice::FileAccessTime);
@@ -273,4 +283,6 @@ void MainWindow::on_massProcessBtn_clicked()
 			}
 		}
 	}
+	QMessageBox::information(this,tr("Success!"),tr("Succesfully completed the mass conversion process!"));
+	ui->progressBar->hide();
 }
